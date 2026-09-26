@@ -22,5 +22,53 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  files      File[]
+
+  @@index([email])
+}
+
+model File {
+  id        String   @id @default(uuid())
+  name      String
+  originalName String
+  mimeType  String
+  size      BigInt
+
+  viewCount Int @default(0)
+  expiryDate DateTime?
+
+   visibility   FileVisibility @default(PRIVATE)
+
+  fileUrl    String
+  publicId   String  
+
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shares  FileShare[]
+
+  @@index([ownerId])
+}
+
+enum FileVisibility {
+  PRIVATE
+  ANYONE_WITH_LINK
+}
+
+model FileShare {
+  id        String   @id @default(uuid())
+
+  fileId    String
+  email     String
+
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([fileId, email])
   @@index([email])
 }
