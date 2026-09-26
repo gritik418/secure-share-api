@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import raiseServerError from "../common/helpers/raise-server-error.js";
-import RegisterSchema from "../schemas/register.schema.js";
+import RegisterSchema from "../schemas/auth/register.schema.js";
 import raiseZodError from "../common/helpers/raise-zod-error.js";
 import prisma from "../database/prisma.js";
 import { compareValue, hashValue } from "../common/utils/hashing.util.js";
-import LoginSchema from "../schemas/login.schema.js";
+import LoginSchema from "../schemas/auth/login.schema.js";
 import jwt from "jsonwebtoken";
 import AUTH_COOKIE_NAME from "../common/constants/cookie.constants.js";
 import COOKIE_OPTIONS from "../common/config/cookie.config.js";

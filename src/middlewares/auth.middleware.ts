@@ -30,7 +30,7 @@ const authenticate = async (
       process.env.JWT_SECRET!,
     ) as JWT_Payload;
 
-    if (!payload || !payload.id || payload.email) {
+    if (!payload || !payload.id || !payload.email) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized.",

@@ -35,9 +35,8 @@ model File {
   size      BigInt
 
   viewCount Int @default(0)
-  expiryDate DateTime?
 
-   visibility   FileVisibility @default(PRIVATE)
+  visibility   FileVisibility @default(PRIVATE)
 
   fileUrl    String
   publicId   String  
