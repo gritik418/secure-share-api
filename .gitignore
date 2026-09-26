@@ -1,0 +1,13 @@
+.agents/
+.claude/
+.windsurf/
+node_modules/
+
+.env
+
+dist/
+build/
+
+.DS_Store
+.vscode/
+/src/generated/prisma
