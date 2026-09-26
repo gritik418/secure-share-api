@@ -73,3 +73,37 @@ export const uploadFile = async (req: Request, res: Response) => {
     return raiseServerError(res, error);
   }
 };
+
+export const getMyFiles = async (req: Request, res: Response) => {
+  try {
+    const userId: string | undefined = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    const files = await prisma.file.findMany({
+      where: {
+        ownerId: userId,
+      },
+    });
+
+    const formattedFiles = files.map((file) => ({
+      ...file,
+      size: file.size.toString(),
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: "Files fetched successfully.",
+      data: {
+        files: formattedFiles,
+      },
+    });
+  } catch (error) {
+    return raiseServerError(res, error);
+  }
+};
