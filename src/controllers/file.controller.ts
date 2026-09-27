@@ -21,8 +21,6 @@ export const uploadFile = async (req: Request, res: Response) => {
 
     const file = req.file;
 
-    console.log(file, req.body);
-
     if (!file) {
       return res.status(400).json({
         success: false,
@@ -38,7 +36,7 @@ export const uploadFile = async (req: Request, res: Response) => {
       return raiseZodError(result.error, res);
     }
 
-    const { visibility } = result.data;
+    const { visibility, mails } = result.data;
 
     const uploaded: CustomUploadApiResponse =
       await uploadFileToCloudinary(file);
@@ -50,20 +48,60 @@ export const uploadFile = async (req: Request, res: Response) => {
       });
     }
 
-    await prisma.file.create({
-      data: {
-        name: uploaded.fileName || file.originalname,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
+    if (visibility === "PRIVATE") {
+      if (!mails || mails.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one email is required for private files.",
+        });
+      }
 
-        fileUrl: uploaded.secure_url,
-        publicId: uploaded.public_id,
+      await prisma.$transaction(async (txn) => {
+        const createdFile = await txn.file.create({
+          data: {
+            name: uploaded.fileName || file.originalname,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
 
-        ownerId: userId,
-        visibility,
-      },
-    });
+            fileUrl: uploaded.secure_url,
+            publicId: uploaded.public_id,
+
+            ownerId: userId,
+            visibility,
+          },
+        });
+
+        const fileShares = [];
+        for (let email of mails) {
+          const file = {
+            email,
+            fileId: createdFile.id,
+          };
+
+          fileShares.push(file);
+        }
+
+        await txn.fileShare.createMany({
+          data: fileShares,
+        });
+      });
+    } else {
+      await prisma.file.create({
+        data: {
+          name: uploaded.fileName || file.originalname,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+
+          fileUrl: uploaded.secure_url,
+          publicId: uploaded.public_id,
+
+          ownerId: userId,
+          visibility,
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
