@@ -9,6 +9,7 @@ import prisma from "../database/prisma.js";
 import FileUploadSchema from "../schemas/file/upload.schema.js";
 import raiseZodError from "../common/helpers/raise-zod-error.js";
 import { Readable } from "node:stream";
+import { FileVisibility } from "../generated/prisma/enums.js";
 
 export const uploadFile = async (req: Request, res: Response) => {
   try {
@@ -135,22 +136,76 @@ export const getMyFiles = async (req: Request, res: Response) => {
       });
     }
 
-    const files = await prisma.file.findMany({
-      where: {
-        ownerId: userId,
-      },
-    });
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
+
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const visibility =
+      req.query.visibility === FileVisibility.PRIVATE ||
+      req.query.visibility === FileVisibility.ANYONE_WITH_LINK
+        ? (req.query.visibility as FileVisibility)
+        : undefined;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      ownerId: userId,
+
+      ...(search
+        ? {
+            originalName: {
+              contains: search,
+              mode: "insensitive" as const,
+            },
+          }
+        : {}),
+
+      ...(visibility
+        ? {
+            visibility,
+          }
+        : {}),
+    };
+
+    const [files, total] = await prisma.$transaction([
+      prisma.file.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+
+      prisma.file.count({
+        where,
+      }),
+    ]);
 
     const formattedFiles = files.map((file) => ({
       ...file,
       size: file.size.toString(),
     }));
 
+    const totalPages = Math.ceil(total / limit);
+
     return res.status(200).json({
       success: true,
       message: "Files fetched successfully.",
       data: {
         files: formattedFiles,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       },
     });
   } catch (error) {
