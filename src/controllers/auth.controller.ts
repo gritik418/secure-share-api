@@ -154,7 +154,8 @@ export const getMe = async (req: Request, res: Response) => {
             email: user?.email,
           },
         }),
-        prisma.fileShare.count({
+        prisma.fileShare.groupBy({
+          by: ["fileId"],
           where: {
             file: {
               ownerId: userId,
@@ -167,7 +168,12 @@ export const getMe = async (req: Request, res: Response) => {
       success: true,
       message: "User fetched successfully.",
       data: {
-        user: { ...user, uploadedFilesCount, sharedToMeCount, sharedByMeCount },
+        user: {
+          ...user,
+          uploadedFilesCount,
+          sharedToMeCount,
+          sharedByMeCount: sharedByMeCount.length,
+        },
       },
     });
   } catch (error) {

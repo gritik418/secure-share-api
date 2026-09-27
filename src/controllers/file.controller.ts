@@ -10,6 +10,7 @@ import FileUploadSchema from "../schemas/file/upload.schema.js";
 import raiseZodError from "../common/helpers/raise-zod-error.js";
 import { Readable } from "node:stream";
 import { FileVisibility } from "../generated/prisma/enums.js";
+import AddFileMemberSchema from "../schemas/file/add-member.schema.js";
 
 export const uploadFile = async (req: Request, res: Response) => {
   try {
@@ -179,6 +180,13 @@ export const getMyFiles = async (req: Request, res: Response) => {
         orderBy: {
           createdAt: "desc",
         },
+        include: {
+          shares: {
+            select: {
+              email: true,
+            },
+          },
+        },
       }),
 
       prisma.file.count({
@@ -186,10 +194,16 @@ export const getMyFiles = async (req: Request, res: Response) => {
       }),
     ]);
 
-    const formattedFiles = files.map((file) => ({
-      ...file,
-      size: file.size.toString(),
-    }));
+    const formattedFiles = files.map((file) => {
+      const accessLink = `${process.env.BASE_URL!}/api/file/${file.id}/view`;
+
+      const formattedFile = {
+        ...file,
+        size: file.size.toString(),
+        accessLink,
+      };
+      return formattedFile;
+    });
 
     const totalPages = Math.ceil(total / limit);
 
@@ -474,6 +488,88 @@ export const deleteFile = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "File deleted successfully.",
+    });
+  } catch (error) {
+    return raiseServerError(res, error);
+  }
+};
+
+export const addFileMember = async (req: Request, res: Response) => {
+  try {
+    const userId: string | undefined = req.user?.id;
+    const fileId: string | undefined | string[] = req.params?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (!fileId || typeof fileId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file ID.",
+      });
+    }
+
+    const file = await prisma.file.findUnique({
+      where: {
+        id: fileId,
+      },
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found.",
+      });
+    }
+
+    if (file.ownerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to add members to this file.",
+      });
+    }
+
+    const rawData = req.body;
+
+    const result = AddFileMemberSchema.safeParse(rawData);
+
+    if (!result.success) {
+      return raiseZodError(result.error, res);
+    }
+
+    const { email } = result.data;
+
+    const isAlreadyShared = await prisma.fileShare.findFirst({
+      where: {
+        fileId: fileId,
+        email: email,
+      },
+    });
+
+    if (isAlreadyShared) {
+      return res.status(400).json({
+        success: false,
+        message: "User is already added to the file.",
+      });
+    }
+
+    const fileShare = await prisma.fileShare.create({
+      data: {
+        email,
+        fileId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Member added successfully.",
+      data: {
+        fileShare,
+      },
     });
   } catch (error) {
     return raiseServerError(res, error);

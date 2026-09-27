@@ -2,6 +2,7 @@ import { Router } from "express";
 import authenticate from "../middlewares/auth.middleware.js";
 import {
   accessFile,
+  addFileMember,
   deleteFile,
   downloadFile,
   getMyFiles,
@@ -10,6 +11,7 @@ import {
 } from "../controllers/file.controller.js";
 import multer from "multer";
 import fileAccessMiddleware from "../middlewares/fileAccess.middleware.js";
+import { validate } from "zod";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -50,5 +52,7 @@ router.get("/:id/view", fileAccessMiddleware, accessFile);
 router.get("/:id/download", fileAccessMiddleware, downloadFile);
 
 router.delete("/:id", authenticate, deleteFile);
+
+router.post("/:id/members", authenticate, addFileMember);
 
 export default router;
