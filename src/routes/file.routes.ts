@@ -2,6 +2,7 @@ import { Router } from "express";
 import authenticate from "../middlewares/auth.middleware.js";
 import {
   accessFile,
+  downloadFile,
   getMyFiles,
   uploadFile,
 } from "../controllers/file.controller.js";
@@ -22,5 +23,7 @@ router.post("/upload", authenticate, upload.single("file"), uploadFile);
 router.get("/", authenticate, getMyFiles);
 
 router.get("/:id", fileAccessMiddleware, accessFile);
+
+router.get("/:id/download", fileAccessMiddleware, downloadFile);
 
 export default router;

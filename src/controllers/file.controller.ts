@@ -229,3 +229,86 @@ export const accessFile = async (req: Request, res: Response) => {
     return raiseServerError(res, error);
   }
 };
+
+export const downloadFile = async (req: Request, res: Response) => {
+  try {
+    const fileId: string | undefined | string[] = req.params.id;
+    const userId: string | undefined = req.user?.id;
+    const userEmail: string | undefined = req.user?.email;
+
+    if (!fileId || typeof fileId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file ID.",
+      });
+    }
+
+    const file = await prisma.file.findUnique({
+      where: {
+        id: fileId,
+      },
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found.",
+      });
+    }
+
+    if (file.visibility === "PRIVATE" && (!userId || !userEmail)) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (file.visibility === "PRIVATE" && file.ownerId !== userId) {
+      if (!userEmail) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized.",
+        });
+      }
+
+      const isShared = await prisma.fileShare.findFirst({
+        where: {
+          fileId: fileId,
+          email: userEmail,
+        },
+      });
+
+      if (!isShared) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have access to this file.",
+        });
+      }
+    }
+
+    const response = await fetch(file.fileUrl);
+
+    if (!response.ok || !response.body) {
+      return res.status(404).json({
+        success: false,
+        message: "File could not be retrieved.",
+      });
+    }
+
+    res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(file.originalName)}"`,
+    );
+
+    Readable.fromWeb(response.body as any).pipe(res);
+  } catch (error) {
+    if (res.headersSent) {
+      console.error("Error while streaming file:", error);
+      return;
+    }
+
+    return raiseServerError(res, error);
+  }
+};
