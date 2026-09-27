@@ -11,6 +11,7 @@ import raiseZodError from "../common/helpers/raise-zod-error.js";
 import { Readable } from "node:stream";
 import { FileVisibility } from "../generated/prisma/enums.js";
 import AddFileMemberSchema from "../schemas/file/add-member.schema.js";
+import RemoveFileMemberSchema from "../schemas/file/remove-member.schema.js";
 
 export const uploadFile = async (req: Request, res: Response) => {
   try {
@@ -485,6 +486,12 @@ export const deleteFile = async (req: Request, res: Response) => {
       },
     });
 
+    await prisma.fileShare.deleteMany({
+      where: {
+        fileId,
+      },
+    });
+
     return res.status(200).json({
       success: true,
       message: "File deleted successfully.",
@@ -570,6 +577,87 @@ export const addFileMember = async (req: Request, res: Response) => {
       data: {
         fileShare,
       },
+    });
+  } catch (error) {
+    return raiseServerError(res, error);
+  }
+};
+
+export const removeFileMember = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const fileId = req.params.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (!fileId || typeof fileId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file ID.",
+      });
+    }
+
+    const file = await prisma.file.findUnique({
+      where: {
+        id: fileId,
+      },
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found.",
+      });
+    }
+
+    if (file.ownerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to remove member from this file.",
+      });
+    }
+
+    const result = RemoveFileMemberSchema.safeParse(req.body);
+
+    if (!result.success) {
+      return raiseZodError(result.error, res);
+    }
+
+    const { email } = result.data;
+
+    const fileShare = await prisma.fileShare.findUnique({
+      where: {
+        fileId_email: {
+          fileId,
+          email,
+        },
+      },
+    });
+
+    if (!fileShare) {
+      return res.status(400).json({
+        success: false,
+        message: "User is not a member of this file.",
+      });
+    }
+
+    await prisma.fileShare.delete({
+      where: {
+        fileId_email: {
+          fileId,
+          email,
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Member removed successfully.",
     });
   } catch (error) {
     return raiseServerError(res, error);

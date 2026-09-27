@@ -7,6 +7,7 @@ import {
   downloadFile,
   getMyFiles,
   getReceivedFiles,
+  removeFileMember,
   uploadFile,
 } from "../controllers/file.controller.js";
 import multer from "multer";
@@ -54,5 +55,7 @@ router.get("/:id/download", fileAccessMiddleware, downloadFile);
 router.delete("/:id", authenticate, deleteFile);
 
 router.post("/:id/members", authenticate, addFileMember);
+
+router.delete("/:id/members", authenticate, removeFileMember);
 
 export default router;
