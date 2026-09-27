@@ -312,3 +312,41 @@ export const downloadFile = async (req: Request, res: Response) => {
     return raiseServerError(res, error);
   }
 };
+
+export const getReceivedFiles = async (req: Request, res: Response) => {
+  try {
+    const userId: string | undefined = req.user?.id;
+    const userEmail: string | undefined = req.user?.email;
+
+    if (!userId || !userEmail) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    const receivedFiles = await prisma.fileShare.findMany({
+      where: {
+        email: userEmail,
+      },
+    });
+
+    const files = await prisma.file.findMany({
+      where: {
+        id: {
+          in: receivedFiles.map((fileShare) => fileShare.fileId),
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Received files fetched successfully.",
+      data: {
+        files,
+      },
+    });
+  } catch (error) {
+    return raiseServerError(res, error);
+  }
+};

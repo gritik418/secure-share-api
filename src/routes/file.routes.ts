@@ -4,6 +4,7 @@ import {
   accessFile,
   downloadFile,
   getMyFiles,
+  getReceivedFiles,
   uploadFile,
 } from "../controllers/file.controller.js";
 import multer from "multer";
@@ -25,5 +26,7 @@ router.get("/", authenticate, getMyFiles);
 router.get("/:id", fileAccessMiddleware, accessFile);
 
 router.get("/:id/download", fileAccessMiddleware, downloadFile);
+
+router.get("/received", authenticate, getReceivedFiles);
 
 export default router;
