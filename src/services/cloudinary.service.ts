@@ -28,3 +28,15 @@ export const uploadFileToCloudinary = async (
       .end(file.buffer);
   });
 };
+
+export const deleteFileFromCloudinary = async (
+  publicId: string,
+): Promise<boolean> => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.destroy(publicId, (error) => {
+      if (error) return reject(false);
+
+      resolve(true);
+    });
+  });
+};

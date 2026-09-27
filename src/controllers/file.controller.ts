@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import raiseServerError from "../common/helpers/raise-server-error.js";
 import {
+  deleteFileFromCloudinary,
   uploadFileToCloudinary,
   type CustomUploadApiResponse,
 } from "../services/cloudinary.service.js";
@@ -345,6 +346,69 @@ export const getReceivedFiles = async (req: Request, res: Response) => {
       data: {
         files,
       },
+    });
+  } catch (error) {
+    return raiseServerError(res, error);
+  }
+};
+
+export const deleteFile = async (req: Request, res: Response) => {
+  try {
+    const fileId: string | undefined | string[] = req.params.id;
+    const userId: string | undefined = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (typeof fileId !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid file ID.",
+      });
+    }
+
+    const file = await prisma.file.findUnique({
+      where: {
+        id: fileId,
+      },
+    });
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found.",
+      });
+    }
+
+    if (file.ownerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have permission to delete this file.",
+      });
+    }
+
+    const isDeleted: boolean = await deleteFileFromCloudinary(file.publicId);
+
+    if (!isDeleted) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to delete file from cloud storage.",
+      });
+    }
+
+    await prisma.file.delete({
+      where: {
+        id: fileId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "File deleted successfully.",
     });
   } catch (error) {
     return raiseServerError(res, error);
