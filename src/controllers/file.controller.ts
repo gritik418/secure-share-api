@@ -89,7 +89,7 @@ export const uploadFile = async (req: Request, res: Response) => {
         });
       });
     } else {
-      await prisma.file.create({
+      const createdFile = await prisma.file.create({
         data: {
           name: uploaded.fileName || file.originalname,
           originalName: file.originalname,
@@ -101,6 +101,16 @@ export const uploadFile = async (req: Request, res: Response) => {
 
           ownerId: userId,
           visibility,
+        },
+      });
+
+      const accessLink = `${process.env.BASE_URL!}/api/file/${createdFile.id}/view`;
+
+      return res.status(200).json({
+        success: true,
+        message: "File uploaded successfully.",
+        data: {
+          accessLink,
         },
       });
     }

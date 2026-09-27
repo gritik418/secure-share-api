@@ -142,11 +142,32 @@ export const getMe = async (req: Request, res: Response) => {
       });
     }
 
+    const [uploadedFilesCount, sharedToMeCount, sharedByMeCount] =
+      await Promise.all([
+        prisma.file.count({
+          where: {
+            ownerId: userId,
+          },
+        }),
+        prisma.fileShare.count({
+          where: {
+            email: user?.email,
+          },
+        }),
+        prisma.fileShare.count({
+          where: {
+            file: {
+              ownerId: userId,
+            },
+          },
+        }),
+      ]);
+
     return res.status(200).json({
       success: true,
       message: "User fetched successfully.",
       data: {
-        user,
+        user: { ...user, uploadedFilesCount, sharedToMeCount, sharedByMeCount },
       },
     });
   } catch (error) {

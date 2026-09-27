@@ -45,7 +45,7 @@ router.get("/", authenticate, getMyFiles);
 
 router.get("/received", authenticate, getReceivedFiles);
 
-router.get("/:id", fileAccessMiddleware, accessFile);
+router.get("/:id/view", fileAccessMiddleware, accessFile);
 
 router.get("/:id/download", fileAccessMiddleware, downloadFile);
 
