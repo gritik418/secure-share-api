@@ -5,7 +5,9 @@ const FileUploadSchema = z
   .object({
     visibility: z.enum(FileVisibility).optional().default("PRIVATE"),
 
-    mails: z.array(z.email()).optional(),
+    mails: z
+      .union([z.email(), z.array(z.string().email())])
+      .transform((value) => (Array.isArray(value) ? value : [value])),
   })
   .superRefine((data, ctx) => {
     if (

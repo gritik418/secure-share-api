@@ -248,17 +248,11 @@ export const accessFile = async (req: Request, res: Response) => {
     });
 
     if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: "File not found.",
-      });
+      return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
     }
 
     if (file.visibility === "PRIVATE" && (!userId || !userEmail)) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized.",
-      });
+      return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
     }
 
     if (file.visibility === "PRIVATE" && file.ownerId !== userId) {
@@ -277,20 +271,14 @@ export const accessFile = async (req: Request, res: Response) => {
       });
 
       if (!isShared) {
-        return res.status(403).json({
-          success: false,
-          message: "You do not have access to this file.",
-        });
+        return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
       }
     }
 
     const response = await fetch(file.fileUrl);
 
     if (!response.ok || !response.body) {
-      return res.status(404).json({
-        success: false,
-        message: "File could not be retrieved.",
-      });
+      return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
     }
 
     res.setHeader("Content-Type", file.mimeType || "application/octet-stream");
@@ -418,13 +406,27 @@ export const getReceivedFiles = async (req: Request, res: Response) => {
           in: receivedFiles.map((fileShare) => fileShare.fileId),
         },
       },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
+
+    const formattedFiles = files.map((file) => ({
+      ...file,
+      size: file.size.toString(),
+    }));
 
     return res.status(200).json({
       success: true,
       message: "Received files fetched successfully.",
       data: {
-        files,
+        files: formattedFiles,
       },
     });
   } catch (error) {
