@@ -257,10 +257,7 @@ export const accessFile = async (req: Request, res: Response) => {
 
     if (file.visibility === "PRIVATE" && file.ownerId !== userId) {
       if (!userEmail) {
-        return res.status(401).json({
-          success: false,
-          message: "Unauthorized.",
-        });
+        return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
       }
 
       const isShared = await prisma.fileShare.findFirst({
@@ -394,39 +391,77 @@ export const getReceivedFiles = async (req: Request, res: Response) => {
       });
     }
 
-    const receivedFiles = await prisma.fileShare.findMany({
-      where: {
-        email: userEmail,
-      },
-    });
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
 
-    const files = await prisma.file.findMany({
-      where: {
-        id: {
-          in: receivedFiles.map((fileShare) => fileShare.fileId),
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim()
+        : undefined;
+
+    const skip = (page - 1) * limit;
+
+    const where = {
+      shares: {
+        some: {
+          email: userEmail,
         },
       },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+
+      ...(search
+        ? {
+            originalName: {
+              contains: search,
+              mode: "insensitive" as const,
+            },
+          }
+        : {}),
+    };
+
+    const [files, total] = await prisma.$transaction([
+      prisma.file.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-    });
+      }),
+
+      prisma.file.count({
+        where,
+      }),
+    ]);
 
     const formattedFiles = files.map((file) => ({
       ...file,
       size: file.size.toString(),
     }));
 
+    const totalPages = Math.ceil(total / limit);
+
     return res.status(200).json({
       success: true,
       message: "Received files fetched successfully.",
       data: {
         files: formattedFiles,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
       },
     });
   } catch (error) {

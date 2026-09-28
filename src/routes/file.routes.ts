@@ -1,5 +1,5 @@
 import { Router } from "express";
-import authenticate from "../middlewares/auth.middleware.js";
+import multer from "multer";
 import {
   accessFile,
   addFileMember,
@@ -10,9 +10,8 @@ import {
   removeFileMember,
   uploadFile,
 } from "../controllers/file.controller.js";
-import multer from "multer";
+import authenticate from "../middlewares/auth.middleware.js";
 import fileAccessMiddleware from "../middlewares/fileAccess.middleware.js";
-import { validate } from "zod";
 
 const upload = multer({
   storage: multer.memoryStorage(),

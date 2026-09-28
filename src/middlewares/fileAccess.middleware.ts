@@ -34,10 +34,7 @@ const fileAccessMiddleware = async (
     });
 
     if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: "File not found.",
-      });
+      return res.redirect(`${process.env.CLIENT_URL}/file-unavailable`);
     }
 
     if (file.visibility === "ANYONE_WITH_LINK") {
